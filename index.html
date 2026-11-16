@@ -39,9 +39,9 @@ const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{autoRefre
 const $=id=>document.getElementById(id);
 let currentUser=null;
 function message(id,text){$(id).textContent=text}
-async function refresh(){
- const {data:{session},error}=await db.auth.getSession();
- if(error)throw error;
+async function refresh(sessionOverride){
+ let session=sessionOverride||null;
+ if(!sessionOverride){const {data,error}=await db.auth.getSession();if(error)throw error;session=data.session;}
  const user=session?.user||null; currentUser=user;
  $('bookingPanel').classList.remove('hidden');
  $('myRequestsPanel').classList.toggle('hidden',!user);
@@ -60,10 +60,10 @@ async function refresh(){
 $('signIn').onclick=async()=>{
  const btn=$('signIn');btn.disabled=true;
  try{
-  await db.auth.signOut({scope:'local'});
-  const {error}=await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});
+  const {data,error}=await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});
   if(error)throw error;
-  await refresh();
+  if(!data.session)throw new Error('Login was accepted but no session was returned. Please try again.');
+  await refresh(data.session);
  }catch(error){message('authMsg','Sign-in failed: '+(error.message||'Please try again.'))}
  finally{btn.disabled=false}
 };
