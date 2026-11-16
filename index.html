@@ -28,6 +28,7 @@ main{max-width:1100px;margin:-30px auto 60px;padding:0 18px}.panel{background:wh
 <div class="field"><label for="meetingTime">Preferred time (Dubai time) *</label><input id="meetingTime" type="time" required></div>
 <div class="field full"><label for="purpose">Meeting purpose *</label><textarea id="purpose" minlength="5" maxlength="3000" required></textarea></div>
 </div><div class="actions"><button class="primary" id="submitRequest" type="submit">Submit meeting request</button></div></form><div id="bookingMsg" class="status" role="status"></div></section>
+<section class="panel hidden" id="myRequestsPanel"><h2>My meeting requests</h2><p class="muted">Track the review status of your submitted meeting requests.</p><div id="myRequestsList">Loading your requests…</div></section>
 <section class="panel hidden" id="adminPanel"><h2>Administrator review</h2><p class="muted">Only approved administrator accounts can view and review requests.</p><div id="adminList">Loading requests…</div></section>
 <p class="notice">UAE Meeting Sector is an independent private meeting-request portal. It is not an official UAE or Dubai government website and is not affiliated with any government department. Do not submit passport numbers, payment details, or other sensitive documents through this form.</p>
 </main>
@@ -41,6 +42,8 @@ function message(id,text){$(id).textContent=text}
 async function refresh(){
  const {data:{user}}=await db.auth.getUser(); currentUser=user;
  $('bookingPanel').classList.toggle('hidden',!user);
+ $('myRequestsPanel').classList.toggle('hidden',!user);
+ if(user) await loadMyRequests();
  $('signOut').classList.toggle('hidden',!user);
  $('signIn').classList.toggle('hidden',!!user);
  $('signUp').classList.toggle('hidden',!!user);
@@ -59,12 +62,28 @@ $('accountBtn').onclick=()=>{$('authPanel').scrollIntoView({behavior:'smooth'})}
 $('bookingForm').onsubmit=async e=>{
  e.preventDefault();if(!currentUser){message('bookingMsg','Please sign in first.');return}
  $('submitRequest').disabled=true;message('bookingMsg','Submitting your request…');
- const {error}=await db.from('meeting_requests').insert({full_name:$('fullName').value.trim(),email:currentUser.email,phone:$('phone').value.trim()||null,organization:$('organization').value.trim()||null,meeting_purpose:$('purpose').value.trim(),preferred_date:$('meetingDate').value,preferred_time:$('meetingTime').value,timezone:'Asia/Dubai',status:'pending'});
+ const {error}=await db.from('meeting_requests').insert({user_id:currentUser.id,full_name:$('fullName').value.trim(),email:currentUser.email,phone:$('phone').value.trim()||null,organization:$('organization').value.trim()||null,meeting_purpose:$('purpose').value.trim(),preferred_date:$('meetingDate').value,preferred_time:$('meetingTime').value,timezone:'Asia/Dubai',status:'pending'});
  $('submitRequest').disabled=false;
  if(error){message('bookingMsg','Could not submit: '+error.message);return}
  $('bookingForm').reset();message('bookingMsg','Request submitted successfully. Its status is Pending until an administrator reviews it.');
+ await loadMyRequests();
  if(!$('adminPanel').classList.contains('hidden'))await loadRequests();
 };
+async function loadMyRequests(){
+ const list=$('myRequestsList');list.textContent='Loading your requests…';
+ const {data,error}=await db.from('meeting_requests').select('id,meeting_purpose,preferred_date,preferred_time,status,admin_notes,created_at').eq('user_id',currentUser.id).order('created_at',{ascending:false});
+ if(error){list.textContent='Could not load your requests: '+error.message;return}
+ if(!data.length){list.textContent='You have not submitted any meeting requests yet.';return}
+ list.innerHTML='';
+ data.forEach(item=>{
+  const el=document.createElement('article');el.className='request';
+  const title=document.createElement('h3');title.textContent='Meeting request — '+item.status.toUpperCase();el.append(title);
+  const details=document.createElement('p');details.className='muted';details.textContent=item.preferred_date+' at '+String(item.preferred_time).slice(0,5)+' Dubai time';el.append(details);
+  const purpose=document.createElement('p');purpose.textContent=item.meeting_purpose;el.append(purpose);
+  if(item.admin_notes){const note=document.createElement('p');note.textContent='Administrator note: '+item.admin_notes;el.append(note)}
+  list.append(el);
+ });
+}
 async function loadRequests(){
  const list=$('adminList');list.textContent='Loading requests…';
  const {data,error}=await db.from('meeting_requests').select('*').order('created_at',{ascending:false});
