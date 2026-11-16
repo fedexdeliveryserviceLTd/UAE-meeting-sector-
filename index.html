@@ -70,37 +70,18 @@ $('submitRequest').addEventListener('click',()=>{
 $('bookingForm').onsubmit=async e=>{
  e.preventDefault();
  const btn=$('submitRequest');btn.disabled=true;
- message('bookingMsg','Reading your saved sign-in…');
+ message('bookingMsg','Checking your sign-in…');
  try{
-  const storageKey='sb-mowqpnvyszvfulzsfvst-auth-token';
-  const raw=localStorage.getItem(storageKey);
-  if(!raw)throw new Error('No saved login was found in this browser. Sign out, sign in again, then submit.');
-  let sessionData=JSON.parse(raw);
-  let session=sessionData.currentSession||sessionData;
-  if(!session.access_token||!session.refresh_token)throw new Error('Your saved login is incomplete. Please sign out and sign in again.');
-  if(session.expires_at && session.expires_at < Math.floor(Date.now()/1000)+60){
-   message('bookingMsg','Refreshing your sign-in securely…');
-   const refreshResponse=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=refresh_token',{
-    method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY},
-    body:JSON.stringify({refresh_token:session.refresh_token})
-   });
-   const refreshed=await refreshResponse.json();
-   if(!refreshResponse.ok)throw new Error(refreshed.msg||refreshed.message||refreshed.error_description||'Your login expired. Please sign in again.');
-   sessionData=refreshed;localStorage.setItem(storageKey,JSON.stringify(refreshed));session=refreshed;
-  }
+  const {data:{session},error:sessionError}=await db.auth.getSession();
+  if(sessionError)throw sessionError;
+  if(!session)throw new Error('You are not signed in. Please sign in again, then submit your request.');
+  const {data:{user},error:userError}=await db.auth.getUser();
+  if(userError||!user)throw new Error('Your sign-in has expired. Please sign in again.');
   message('bookingMsg','Sending your meeting request…');
-  const response=await fetch(SUPABASE_URL+'/rest/v1/meeting_requests',{
-   method:'POST',
-   headers:{
-    'apikey':SUPABASE_KEY,
-    'Authorization':'Bearer '+session.access_token,
-    'Content-Type':'application/json',
-    'Prefer':'return=representation'
-   },
-   body:JSON.stringify({
-    user_id:session.user.id,
+  const {data:inserted,error:insertError}=await db.from('meeting_requests').insert({
+    user_id:user.id,
     full_name:$('fullName').value.trim(),
-    email:session.user.email,
+    email:user.email,
     phone:$('phone').value.trim()||null,
     organization:$('organization').value.trim()||null,
     meeting_purpose:$('purpose').value.trim(),
@@ -108,16 +89,20 @@ $('bookingForm').onsubmit=async e=>{
     preferred_time:$('meetingTime').value,
     timezone:'Asia/Dubai',
     status:'pending'
-   })
-  });
-  if(!response.ok){
-   let detail='HTTP '+response.status;
-   try{const body=await response.json();detail=body.message||body.details||body.hint||body.error||detail}catch(_){}
-   throw new Error(detail);
-  }
-  const insertedRows=await response.json();
-  const inserted=Array.isArray(insertedRows)?insertedRows[0]:insertedRows;
-  try{await fetch(SUPABASE_URL+'/functions/v1/send-meeting-notification',{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+session.access_token},body:JSON.stringify({type:'booking',request_id:inserted.id})})}catch(notificationError){console.warn('Admin email notification failed:',notificationError)}
+  }).select('id').single();
+  if(insertError)throw insertError;
+  message('bookingMsg','Your request is saved. Sending the administrator notification…');
+  try{
+   const {data:{session:latestSession}}=await db.auth.getSession();
+   if(latestSession){
+    const notification=await fetch(SUPABASE_URL+'/functions/v1/send-meeting-notification',{
+     method:'POST',
+     headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+latestSession.access_token},
+     body:JSON.stringify({type:'booking',request_id:inserted.id})
+    });
+    if(!notification.ok)console.warn('Admin email notification returned:',notification.status,await notification.text());
+   }
+  }catch(notificationError){console.warn('Admin email notification failed:',notificationError)}
   $('bookingForm').reset();
   message('bookingMsg','Meeting request submitted successfully. Status: Pending administrator review.');
   try{await loadMyRequests()}catch(_){}
