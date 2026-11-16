@@ -4,7 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>UAE Meeting Sector | Private Meeting Requests</title>
 <meta name="description" content="Independent private meeting request portal. All requests are subject to review.">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1"></script>
+
 <style>
 :root{--navy:#101d32;--gold:#c9a45c;--ink:#182235;--muted:#667085;--paper:#f5f6f8}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;color:var(--ink);background:var(--paper);line-height:1.55}
@@ -33,6 +33,7 @@ main{max-width:1100px;margin:-30px auto 60px;padding:0 18px}.panel{background:wh
 <p class="notice">UAE Meeting Sector is an independent private meeting-request portal. It is not an official UAE or Dubai government website and is not affiliated with any government department. Do not submit passport numbers, payment details, or other sensitive documents through this form.</p>
 </main>
 <script>
+function startApp(){
 const SUPABASE_URL='https://mowqpnvyszvfulzsfvst.supabase.co';
 const SUPABASE_KEY='sb_publishable_a2Q2flrQ7uuNESOH3tbgWw_irmKRyiD';
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:false,storageKey:'uae-meeting-sector-auth'}});
@@ -181,5 +182,22 @@ async function loadRequests(){
  });
 }
 refresh().catch(error=>message('authMsg','Connection error: '+(error.message||'Please reload the page.')));
+}
+function loadSupabase(urls,index){
+ if(index>=urls.length){
+  const status=document.getElementById('authMsg');
+  if(status)status.textContent='The secure sign-in service could not load. Please check your internet connection and reload this page.';
+  return;
+ }
+ const script=document.createElement('script');
+ script.src=urls[index];
+ script.onload=()=>{if(window.supabase&&window.supabase.createClient)startApp();else loadSupabase(urls,index+1)};
+ script.onerror=()=>loadSupabase(urls,index+1);
+ document.head.appendChild(script);
+}
+loadSupabase([
+ 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.js',
+ 'https://unpkg.com/@supabase/supabase-js@2.49.1/dist/umd/supabase.js'
+],0);
 </script>
 </body></html>
