@@ -35,7 +35,7 @@ main{max-width:1100px;margin:-30px auto 60px;padding:0 18px}.panel{background:wh
 <script>
 const SUPABASE_URL='https://mowqpnvyszvfulzsfvst.supabase.co';
 const SUPABASE_KEY='sb_publishable_a2Q2flrQ7uuNESOH3tbgWw_irmKRyiD';
-const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{autoRefreshToken:false,persistSession:true,detectSessionInUrl:false,storageKey:'uae-meeting-sector-auth'}});
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:false,storageKey:'uae-meeting-sector-auth'}});
 const $=id=>document.getElementById(id);
 let currentUser=null;
 function message(id,text){$(id).textContent=text}
