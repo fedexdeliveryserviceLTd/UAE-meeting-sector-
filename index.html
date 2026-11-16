@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>UAE Meeting Sector | Private Meeting Requests</title>
+<meta name="description" content="Independent private meeting request portal. All requests are subject to review.">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1"></script>
+<style>
+:root{--navy:#101d32;--gold:#c9a45c;--ink:#182235;--muted:#667085;--paper:#f5f6f8}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;color:var(--ink);background:var(--paper);line-height:1.55}
+header{background:linear-gradient(120deg,rgba(9,22,40,.94),rgba(16,36,58,.78)),url('https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1800&q=85') center/cover;color:white;padding:24px max(6vw,22px) 70px}
+nav{display:flex;justify-content:space-between;align-items:center;gap:15px;max-width:1100px;margin:auto}.brand{font-weight:700;letter-spacing:.08em}.brand span{color:var(--gold)}nav button{background:transparent;color:white;border:1px solid #ffffff77;padding:10px 15px;border-radius:8px}
+.hero{max-width:1100px;margin:75px auto 0}.eyebrow{color:#e6c783;text-transform:uppercase;letter-spacing:.18em;font-size:12px}.hero h1{font-size:clamp(36px,6vw,62px);line-height:1.05;max-width:720px;margin:14px 0}.hero p{max-width:620px;color:#e2e8f0;font-size:17px}
+main{max-width:1100px;margin:-30px auto 60px;padding:0 18px}.panel{background:white;border-radius:16px;padding:clamp(20px,4vw,38px);box-shadow:0 12px 35px #14213a12;margin-bottom:22px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.field{display:flex;flex-direction:column;gap:6px}.field.full{grid-column:1/-1}label{font-size:13px;font-weight:700;color:#344054}input,select,textarea{width:100%;padding:12px;border:1px solid #d0d5dd;border-radius:8px;font:inherit;background:white}textarea{min-height:110px;resize:vertical}button.primary{background:var(--navy);color:white;border:0;border-radius:8px;padding:13px 18px;font-weight:700;cursor:pointer}button:disabled{opacity:.55;cursor:not-allowed}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.muted{color:var(--muted);font-size:13px}.status{padding:10px 12px;border-radius:8px;background:#f2f4f7;margin:12px 0;font-size:14px}.hidden{display:none!important}.request{border:1px solid #eaecf0;border-radius:10px;padding:15px;margin:12px 0}.request h3{margin:0 0 6px}.request select,.request textarea{margin-top:8px}.notice{font-size:12px;color:#667085;margin-top:18px}
+@media(max-width:650px){.grid{grid-template-columns:1fr}.field.full{grid-column:auto}.hero{margin-top:55px}header{padding-bottom:65px}}
+</style>
+</head>
+<body>
+<header><nav><div class="brand">UAE <span>MEETING</span> SECTOR</div><button id="accountBtn" type="button">Sign in / Register</button></nav>
+<section class="hero"><div class="eyebrow">Private meeting request portal</div><h1>Request a meeting with clarity and confidence.</h1><p>Submit your meeting details through our independent private portal. Every request is reviewed individually; submitting a request does not mean it has been approved.</p></section></header>
+<main>
+<section class="panel" id="authPanel"><h2>Your account</h2><p class="muted">Create an account or sign in to submit a meeting request.</p><div class="grid"><div class="field"><label for="email">Email address</label><input id="email" type="email" autocomplete="email" required></div><div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" minlength="6" required></div></div><div class="actions"><button class="primary" id="signIn">Sign in</button><button class="primary" id="signUp" type="button">Create account</button><button id="signOut" class="hidden" type="button">Sign out</button></div><div id="authMsg" class="status" role="status">You are not signed in.</div></section>
+<section class="panel hidden" id="bookingPanel"><h2>Request a meeting</h2><p class="muted">Complete the details below. All fields marked required must be completed.</p><form id="bookingForm"><div class="grid">
+<div class="field"><label for="fullName">Full name *</label><input id="fullName" maxlength="120" required></div>
+<div class="field"><label for="phone">Phone number</label><input id="phone" maxlength="40" type="tel"></div>
+<div class="field"><label for="organization">Organisation</label><input id="organization" maxlength="160"></div>
+<div class="field"><label for="meetingDate">Preferred date *</label><input id="meetingDate" type="date" required></div>
+<div class="field"><label for="meetingTime">Preferred time (Dubai time) *</label><input id="meetingTime" type="time" required></div>
+<div class="field full"><label for="purpose">Meeting purpose *</label><textarea id="purpose" minlength="5" maxlength="3000" required></textarea></div>
+</div><div class="actions"><button class="primary" id="submitRequest" type="submit">Submit meeting request</button></div></form><div id="bookingMsg" class="status" role="status"></div></section>
+<section class="panel hidden" id="adminPanel"><h2>Administrator review</h2><p class="muted">Only approved administrator accounts can view and review requests.</p><div id="adminList">Loading requests…</div></section>
+<p class="notice">UAE Meeting Sector is an independent private meeting-request portal. It is not an official UAE or Dubai government website and is not affiliated with any government department. Do not submit passport numbers, payment details, or other sensitive documents through this form.</p>
+</main>
+<script>
+const SUPABASE_URL='https://mowqpnvyszvfulzsfvst.supabase.co';
+const SUPABASE_KEY='sb_publishable_a2Q2flrQ7uuNESOH3tbgWw_irmKRyiD';
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=id=>document.getElementById(id);
+let currentUser=null;
+function message(id,text){$(id).textContent=text}
+async function refresh(){
+ const {data:{user}}=await db.auth.getUser(); currentUser=user;
+ $('bookingPanel').classList.toggle('hidden',!user);
+ $('signOut').classList.toggle('hidden',!user);
+ $('signIn').classList.toggle('hidden',!!user);
+ $('signUp').classList.toggle('hidden',!!user);
+ $('authMsg').textContent=user?'Signed in as '+user.email:'You are not signed in.';
+ $('accountBtn').textContent=user?'Account signed in':'Sign in / Register';
+ $('adminPanel').classList.add('hidden');
+ if(user){
+  const {data:admin,error}=await db.from('meeting_admins').select('user_id').eq('user_id',user.id).maybeSingle();
+  if(admin&&!error){$('adminPanel').classList.remove('hidden');await loadRequests();}
+ }
+}
+$('signIn').onclick=async()=>{const {error}=await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});message('authMsg',error?error.message:'Signed in.');if(!error)await refresh()};
+$('signUp').onclick=async()=>{const {data,error}=await db.auth.signUp({email:$('email').value.trim(),password:$('password').value});message('authMsg',error?error.message:(data.session?'Account created and signed in.':'Account created. Check your email to confirm, then sign in.'));if(data.session)await refresh()};
+$('signOut').onclick=async()=>{await db.auth.signOut();await refresh()};
+$('accountBtn').onclick=()=>{$('authPanel').scrollIntoView({behavior:'smooth'})};
+$('bookingForm').onsubmit=async e=>{
+ e.preventDefault();if(!currentUser){message('bookingMsg','Please sign in first.');return}
+ $('submitRequest').disabled=true;message('bookingMsg','Submitting your request…');
+ const {error}=await db.from('meeting_requests').insert({full_name:$('fullName').value.trim(),email:currentUser.email,phone:$('phone').value.trim()||null,organization:$('organization').value.trim()||null,meeting_purpose:$('purpose').value.trim(),preferred_date:$('meetingDate').value,preferred_time:$('meetingTime').value,timezone:'Asia/Dubai',status:'pending'});
+ $('submitRequest').disabled=false;
+ if(error){message('bookingMsg','Could not submit: '+error.message);return}
+ $('bookingForm').reset();message('bookingMsg','Request submitted successfully. Its status is Pending until an administrator reviews it.');
+ if(!$('adminPanel').classList.contains('hidden'))await loadRequests();
+};
+async function loadRequests(){
+ const list=$('adminList');list.textContent='Loading requests…';
+ const {data,error}=await db.from('meeting_requests').select('*').order('created_at',{ascending:false});
+ if(error){list.textContent='Could not load requests: '+error.message;return}
+ if(!data.length){list.textContent='No meeting requests have been submitted yet.';return}
+ list.innerHTML='';
+ data.forEach(item=>{
+  const el=document.createElement('article');el.className='request';
+  const title=document.createElement('h3');title.textContent=item.full_name+' — '+item.status.toUpperCase();el.append(title);
+  const details=document.createElement('p');details.className='muted';details.textContent=item.email+' · '+(item.phone||'No phone')+' · '+(item.organization||'No organisation')+' · '+item.preferred_date+' at '+String(item.preferred_time).slice(0,5)+' Dubai time';el.append(details);
+  const purpose=document.createElement('p');purpose.textContent=item.meeting_purpose;el.append(purpose);
+  const status=document.createElement('select');['pending','approved','rejected'].forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v[0].toUpperCase()+v.slice(1);status.append(o)});status.value=item.status;el.append(status);
+  const notes=document.createElement('textarea');notes.placeholder='Optional administrator note';notes.value=item.admin_notes||'';el.append(notes);
+  const save=document.createElement('button');save.className='primary';save.type='button';save.textContent='Save review';save.onclick=async()=>{save.disabled=true;const {error}=await db.from('meeting_requests').update({status:status.value,admin_notes:notes.value.trim()||null,reviewed_at:new Date().toISOString()}).eq('id',item.id);save.disabled=false;if(error){alert('Could not save: '+error.message)}else{await loadRequests()}};el.append(save);list.append(el);
+ });
+}
+db.auth.onAuthStateChange(()=>{setTimeout(refresh,0)});
+refresh();
+</script>
+</body></html>
