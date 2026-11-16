@@ -20,7 +20,7 @@ main{max-width:1100px;margin:-30px auto 60px;padding:0 18px}.panel{background:wh
 <section class="hero"><div class="eyebrow">Private meeting request portal</div><h1>Request a meeting with clarity and confidence.</h1><p>Submit your meeting details through our independent private portal. Every request is reviewed individually; submitting a request does not mean it has been approved.</p></section></header>
 <main>
 <section class="panel" id="authPanel"><h2>Your account</h2><p class="muted">Create an account or sign in to submit a meeting request.</p><div class="grid"><div class="field"><label for="email">Email address</label><input id="email" type="email" autocomplete="email" required></div><div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" minlength="6" required></div></div><div class="actions"><button class="primary" id="signIn">Sign in</button><button class="primary" id="signUp" type="button">Create account</button><button id="signOut" class="hidden" type="button">Sign out</button></div><div id="authMsg" class="status" role="status">You are not signed in.</div></section>
-<section class="panel hidden" id="bookingPanel"><h2>Request a meeting</h2><p class="muted">Complete the details below. All fields marked required must be completed.</p><form id="bookingForm"><div class="grid">
+<section class="panel" id="bookingPanel"><h2>Request a meeting</h2><p class="muted">Complete the details below. All fields marked required must be completed. You must be signed in before submitting.</p><form id="bookingForm"><div class="grid">
 <div class="field"><label for="fullName">Full name *</label><input id="fullName" maxlength="120" required></div>
 <div class="field"><label for="phone">Phone number</label><input id="phone" maxlength="40" type="tel"></div>
 <div class="field"><label for="organization">Organisation</label><input id="organization" maxlength="160"></div>
@@ -41,7 +41,7 @@ let currentUser=null;
 function message(id,text){$(id).textContent=text}
 async function refresh(){
  const {data:{user}}=await db.auth.getUser(); currentUser=user;
- $('bookingPanel').classList.toggle('hidden',!user);
+ $('bookingPanel').classList.remove('hidden');
  $('myRequestsPanel').classList.toggle('hidden',!user);
  if(user) await loadMyRequests();
  $('signOut').classList.toggle('hidden',!user);
