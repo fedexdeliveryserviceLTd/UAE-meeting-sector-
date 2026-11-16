@@ -69,20 +69,48 @@ $('submitRequest').addEventListener('click',()=>{
 });
 $('bookingForm').onsubmit=async e=>{
  e.preventDefault();
- $('submitRequest').disabled=true;message('bookingMsg','Checking your sign-in…');
+ const btn=$('submitRequest');
+ btn.disabled=true;
+ message('bookingMsg','Checking your saved sign-in session…');
  try{
-  const {data:{user},error:authError}=await db.auth.getUser();
-  if(authError)throw authError;
-  currentUser=user;
-  if(!currentUser){message('bookingMsg','Your sign-in session is not active. Please sign out, sign in again, then submit.');return}
-  message('bookingMsg','Submitting your request…');
-  const {error}=await db.from('meeting_requests').insert({user_id:currentUser.id,full_name:$('fullName').value.trim(),email:currentUser.email,phone:$('phone').value.trim()||null,organization:$('organization').value.trim()||null,meeting_purpose:$('purpose').value.trim(),preferred_date:$('meetingDate').value,preferred_time:$('meetingTime').value,timezone:'Asia/Dubai',status:'pending'});
-  if(error)throw error;
-  $('bookingForm').reset();message('bookingMsg','Request submitted successfully. Its status is Pending until an administrator reviews it.');
+  const sessionResult=await Promise.race([
+   db.auth.getSession(),
+   new Promise((_,reject)=>setTimeout(()=>reject(new Error('Sign-in check timed out. Please refresh and sign in again.')),12000))
+  ]);
+  if(sessionResult.error)throw sessionResult.error;
+  const session=sessionResult.data.session;
+  if(!session||!session.user){
+   currentUser=null;
+   message('bookingMsg','No active sign-in session was found. Please sign out, sign in again, then submit.');
+   return;
+  }
+  currentUser=session.user;
+  message('bookingMsg','Your sign-in is confirmed. Sending your meeting request…');
+  const insertResult=await Promise.race([
+   db.from('meeting_requests').insert({
+    user_id:currentUser.id,
+    full_name:$('fullName').value.trim(),
+    email:currentUser.email,
+    phone:$('phone').value.trim()||null,
+    organization:$('organization').value.trim()||null,
+    meeting_purpose:$('purpose').value.trim(),
+    preferred_date:$('meetingDate').value,
+    preferred_time:$('meetingTime').value,
+    timezone:'Asia/Dubai',
+    status:'pending'
+   }),
+   new Promise((_,reject)=>setTimeout(()=>reject(new Error('The booking request timed out. Check your connection and try again.')),20000))
+  ]);
+  if(insertResult.error)throw insertResult.error;
+  $('bookingForm').reset();
+  message('bookingMsg','Request submitted successfully. Status: Pending administrator review.');
   await loadMyRequests();
   if(!$('adminPanel').classList.contains('hidden'))await loadRequests();
- }catch(error){message('bookingMsg','Booking error: '+(error.message||'Please try again.'))}
- finally{$('submitRequest').disabled=false}
+ }catch(error){
+  message('bookingMsg','Booking error: '+(error.message||'Please refresh and try again.'));
+ }finally{
+  btn.disabled=false;
+ }
 };
 async function loadMyRequests(){
  const list=$('myRequestsList');list.textContent='Loading your requests…';
