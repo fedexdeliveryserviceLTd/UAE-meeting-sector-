@@ -45,7 +45,6 @@ async function refresh(sessionOverride){
  const user=session?.user||null; currentUser=user;
  $('bookingPanel').classList.remove('hidden');
  $('myRequestsPanel').classList.toggle('hidden',!user);
- if(user) await loadMyRequests();
  $('signOut').classList.toggle('hidden',!user);
  $('signIn').classList.toggle('hidden',!!user);
  $('signUp').classList.toggle('hidden',!!user);
@@ -53,8 +52,13 @@ async function refresh(sessionOverride){
  $('accountBtn').textContent=user?'Account signed in':'Sign in / Register';
  $('adminPanel').classList.add('hidden');
  if(user){
-  const {data:admin,error:adminError}=await db.from('meeting_admins').select('user_id').eq('user_id',user.id).maybeSingle();
-  if(admin&&!adminError){$('adminPanel').classList.remove('hidden');await loadRequests();}
+  try{
+   const {data:admin,error:adminError}=await db.from('meeting_admins').select('user_id').eq('user_id',user.id).maybeSingle();
+   if(adminError)throw adminError;
+   if(admin){$('adminPanel').classList.remove('hidden');}
+  }catch(adminCheckError){console.warn('Admin check failed:',adminCheckError);message('authMsg','Signed in as '+user.email+'. Admin access check failed: '+adminCheckError.message);}
+  try{await loadMyRequests()}catch(loadError){console.warn('Request list failed:',loadError);}
+  if(!$('adminPanel').classList.contains('hidden'))try{await loadRequests()}catch(loadError){console.warn('Admin list failed:',loadError);}
  }
 }
 $('signIn').onclick=async()=>{
@@ -63,6 +67,12 @@ $('signIn').onclick=async()=>{
   const {data,error}=await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});
   if(error)throw error;
   if(!data.session)throw new Error('Login was accepted but no session was returned. Please try again.');
+  currentUser=data.session.user;
+  $('authMsg').textContent='Signed in as '+data.session.user.email+'. Loading your account…';
+  $('signIn').classList.add('hidden');
+  $('signUp').classList.add('hidden');
+  $('signOut').classList.remove('hidden');
+  $('accountBtn').textContent='Account signed in';
   await refresh(data.session);
  }catch(error){message('authMsg','Sign-in failed: '+(error.message||'Please try again.'))}
  finally{btn.disabled=false}
