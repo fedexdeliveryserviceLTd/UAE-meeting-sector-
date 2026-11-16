@@ -38,10 +38,12 @@ const SUPABASE_KEY='sb_publishable_a2Q2flrQ7uuNESOH3tbgWw_irmKRyiD';
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:false,storageKey:'uae-meeting-sector-auth'}});
 const $=id=>document.getElementById(id);
 let currentUser=null;
+let authRevision=0;
 function message(id,text){$(id).textContent=text}
 async function refresh(sessionOverride){
+ const revision=authRevision;
  let session=sessionOverride||null;
- if(!sessionOverride){const {data,error}=await db.auth.getSession();if(error)throw error;session=data.session;}
+ if(!sessionOverride){const {data,error}=await db.auth.getSession();if(error)throw error;if(revision!==authRevision)return;session=data.session;}
  const user=session?.user||null; currentUser=user;
  $('bookingPanel').classList.remove('hidden');
  $('myRequestsPanel').classList.toggle('hidden',!user);
@@ -67,6 +69,7 @@ $('signIn').onclick=async()=>{
   const {data,error}=await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});
   if(error)throw error;
   if(!data.session)throw new Error('Login was accepted but no session was returned. Please try again.');
+  authRevision++;
   currentUser=data.session.user;
   $('authMsg').textContent='Signed in as '+data.session.user.email+'.';
   $('signIn').classList.add('hidden');
@@ -86,7 +89,7 @@ $('signIn').onclick=async()=>{
  finally{btn.disabled=false}
 };
 $('signUp').onclick=async()=>{const {data,error}=await db.auth.signUp({email:$('email').value.trim(),password:$('password').value});message('authMsg',error?error.message:(data.session?'Account created and signed in.':'Account created. Check your email to confirm, then sign in.'));if(data.session)await refresh()};
-$('signOut').onclick=async()=>{await db.auth.signOut();await refresh()};
+$('signOut').onclick=async()=>{authRevision++;await db.auth.signOut();await refresh()};
 $('accountBtn').onclick=()=>{$('authPanel').scrollIntoView({behavior:'smooth'})};
 $('bookingForm').addEventListener('invalid',e=>{
  message('bookingMsg','Please complete the required fields: full name, preferred date, preferred time, and meeting purpose.');
