@@ -68,12 +68,20 @@ $('signIn').onclick=async()=>{
   if(error)throw error;
   if(!data.session)throw new Error('Login was accepted but no session was returned. Please try again.');
   currentUser=data.session.user;
-  $('authMsg').textContent='Signed in as '+data.session.user.email+'. Loading your account…';
+  $('authMsg').textContent='Signed in as '+data.session.user.email+'.';
   $('signIn').classList.add('hidden');
   $('signUp').classList.add('hidden');
   $('signOut').classList.remove('hidden');
   $('accountBtn').textContent='Account signed in';
-  await refresh(data.session);
+  $('myRequestsPanel').classList.remove('hidden');
+  $('myRequestsList').textContent='Loading your requests…';
+  $('adminPanel').classList.add('hidden');
+  btn.disabled=false;
+  db.from('meeting_admins').select('user_id').eq('user_id',currentUser.id).maybeSingle().then(({data:admin,error:adminError})=>{
+   if(adminError){console.warn('Admin check failed:',adminError);return}
+   if(admin){$('adminPanel').classList.remove('hidden');loadRequests().catch(e=>console.warn(e))}
+  }).catch(e=>console.warn('Admin check failed:',e));
+  loadMyRequests().catch(e=>{$('myRequestsList').textContent='Could not load your requests: '+e.message});
  }catch(error){message('authMsg','Sign-in failed: '+(error.message||'Please try again.'))}
  finally{btn.disabled=false}
 };
