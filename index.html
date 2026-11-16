@@ -59,6 +59,14 @@ $('signIn').onclick=async()=>{const {error}=await db.auth.signInWithPassword({em
 $('signUp').onclick=async()=>{const {data,error}=await db.auth.signUp({email:$('email').value.trim(),password:$('password').value});message('authMsg',error?error.message:(data.session?'Account created and signed in.':'Account created. Check your email to confirm, then sign in.'));if(data.session)await refresh()};
 $('signOut').onclick=async()=>{await db.auth.signOut();await refresh()};
 $('accountBtn').onclick=()=>{$('authPanel').scrollIntoView({behavior:'smooth'})};
+$('bookingForm').addEventListener('invalid',e=>{
+ message('bookingMsg','Please complete the required fields: full name, preferred date, preferred time, and meeting purpose.');
+},true);
+$('submitRequest').addEventListener('click',()=>{
+ if(!$('bookingForm').checkValidity()){
+  message('bookingMsg','Please complete all required fields before submitting.');
+ }
+});
 $('bookingForm').onsubmit=async e=>{
  e.preventDefault();
  $('submitRequest').disabled=true;message('bookingMsg','Checking your sign-in…');
@@ -108,6 +116,6 @@ async function loadRequests(){
  });
 }
 db.auth.onAuthStateChange(()=>{setTimeout(refresh,0)});
-refresh();
+refresh().catch(error=>message('authMsg','Connection error: '+(error.message||'Please reload the page.')));
 </script>
 </body></html>
